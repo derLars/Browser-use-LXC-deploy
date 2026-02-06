@@ -11,7 +11,7 @@ class TaskRequest(BaseModel):
     task: str
     deepseek_api_key: str
 
-@app.post("/run")
+@app.post("/browse")
 async def run_agent(request: TaskRequest):
     try:
         # Initialize DeepSeek LLM
@@ -22,8 +22,8 @@ async def run_agent(request: TaskRequest):
         )
 
         # Configure browser for headless execution in LXC
-        # extra_chromium_args=['--no-sandbox'] is often needed in containers/root execution
-        browser = Browser(headless=True, extra_chromium_args=['--no-sandbox'])
+        # extra_chromium_args=['--no-sandbox'] is often needed in containers/root execution, but BrowserSession doesn't accept it directly
+        browser = Browser(headless=True)
 
         # Prepare task description
         # If url is provided, we can instruct the agent to start there
