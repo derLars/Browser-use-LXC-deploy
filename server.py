@@ -1,0 +1,63 @@
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import asyncio
+from browser_use import Agent
+from browser_use.llm import ChatDeepSeek
+from browser_use.browser.browser import Browser, BrowserConfig
+
+app = FastAPI()
+
+class TaskRequest(BaseModel):
+    url: str
+    task: str
+    deepseek_api_key: str
+
+@app.post("/run")
+async def run_agent(request: TaskRequest):
+    try:
+        # Initialize DeepSeek LLM
+        llm = ChatDeepSeek(
+            base_url='https://api.deepseek.com/v1',
+            model='deepseek-chat',
+            api_key=request.deepseek_api_key,
+        )
+
+        # Configure browser for headless execution in LXC
+        # extra_chromium_args=['--no-sandbox'] is often needed in containers/root execution
+        browser = Browser(config=BrowserConfig(headless=True, extra_chromium_args=['--no-sandbox']))
+
+        # Prepare task description
+        # If url is provided, we can instruct the agent to start there
+        # However, typically the agent decides navigation. 
+        # But to be explicit:
+        full_task = f"Navigate to {request.url}. {request.task}"
+
+        # Initialize Agent
+        # use_vision=False because DeepSeek-V3 (chat) is text-only/DOM-based
+        agent = Agent(
+            task=full_task,
+            llm=llm,
+            use_vision=False,
+            browser=browser
+        )
+
+        # Run agent
+        result = await agent.run()
+        
+        # Return result
+        # run() returns history, we'll convert to string for now
+        return {"result": str(result)}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        # Ensure browser is closed if possible, though 'browser' object might handle it or be reused.
+        # In this simple implementation, we create a new browser instance per request which is safer but slower.
+        # Ideally we'd reuse the browser but create new contexts. 
+        # For now, let's rely on garbage collection or explicit close if available.
+        if 'browser' in locals():
+            await browser.close()
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
