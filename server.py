@@ -22,8 +22,8 @@ async def run_agent(request: TaskRequest):
         )
 
         # Configure browser for headless execution in LXC
-        # extra_chromium_args=['--no-sandbox'] is often needed in containers/root execution, but BrowserSession doesn't accept it directly
-        browser = Browser(headless=True)
+        # 'args' passes arguments to the browser instance
+        browser = Browser(headless=True, args=['--no-sandbox'])
 
         # Prepare task description
         # If url is provided, we can instruct the agent to start there
