@@ -1,10 +1,23 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import asyncio
+from contextlib import asynccontextmanager
 from browser_use import Agent, Browser
 from browser_use.llm import ChatDeepSeek
 
-app = FastAPI()
+# Global browser instance
+browser = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global browser
+    # Initialize the browser once on startup
+    browser = Browser(headless=True, args=['--no-sandbox'])
+    yield
+    # Cleanup on shutdown (if browser supported close)
+    # if browser: await browser.close() 
+
+app = FastAPI(lifespan=lifespan)
 
 class TaskRequest(BaseModel):
     url: str
@@ -13,6 +26,7 @@ class TaskRequest(BaseModel):
 
 @app.post("/browse")
 async def run_agent(request: TaskRequest):
+    global browser
     try:
         # Initialize DeepSeek LLM
         llm = ChatDeepSeek(
@@ -21,17 +35,10 @@ async def run_agent(request: TaskRequest):
             api_key=request.deepseek_api_key,
         )
 
-        # Configure browser for headless execution in LXC
-        # 'args' passes arguments to the browser instance
-        browser = Browser(headless=True, args=['--no-sandbox'])
-
         # Prepare task description
-        # If url is provided, we can instruct the agent to start there
-        # However, typically the agent decides navigation. 
-        # But to be explicit:
         full_task = f"Navigate to {request.url}. {request.task}"
 
-        # Initialize Agent
+        # Initialize Agent using the persistent browser instance
         # use_vision=False because DeepSeek-V3 (chat) is text-only/DOM-based
         agent = Agent(
             task=full_task,
@@ -44,7 +51,6 @@ async def run_agent(request: TaskRequest):
         result = await agent.run()
         
         # Return result
-        # run() returns history, we'll convert to string for now
         return {"result": str(result)}
 
     except Exception as e:
