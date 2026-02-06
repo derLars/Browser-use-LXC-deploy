@@ -1,4 +1,5 @@
 import os
+import asyncio
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -27,6 +28,8 @@ class TaskRequest(BaseModel):
     model: str = "deepseek-chat"
     base_url: str = "https://api.deepseek.com/v1" 
     use_vision: bool = False
+    timeout: int = 900  # Default 15 minutes (in seconds)
+    max_steps: int = 100  # Maximum agent steps to prevent infinite loops
 
 def extract_final_result(history):
     """Extracts the final meaningful result from the agent history."""
@@ -52,6 +55,8 @@ def extract_final_result(history):
 @app.post("/browse")
 async def run_agent(request: TaskRequest):
     logger.info(f"Incoming request: {request.task} on {request.url}")
+    logger.info(f"Configuration: model={request.model}, vision={request.use_vision}, timeout={request.timeout}s, max_steps={request.max_steps}")
+    
     try:
         # Initialize LLM
         if "deepseek" in request.model.lower():
@@ -79,12 +84,30 @@ async def run_agent(request: TaskRequest):
             task=full_task,
             llm=llm,
             use_vision=request.use_vision,
-            browser=browser
+            browser=browser,
+            max_steps=request.max_steps
         )
 
-        logger.info("Starting agent execution...")
-        history = await agent.run()
-        logger.info("Agent execution finished.")
+        logger.info(f"Starting agent execution with {request.timeout}s timeout...")
+        
+        try:
+            # Run agent with timeout
+            history = await asyncio.wait_for(
+                agent.run(),
+                timeout=request.timeout
+            )
+            logger.info("Agent execution finished successfully.")
+            
+        except asyncio.TimeoutError:
+            logger.error(f"Agent execution timed out after {request.timeout} seconds")
+            return JSONResponse(
+                status_code=408,  # Request Timeout
+                content={
+                    "error": "timeout",
+                    "message": f"Task execution exceeded the timeout limit of {request.timeout} seconds",
+                    "suggestion": "Try increasing the 'timeout' parameter or simplifying the task"
+                }
+            )
         
         response_data = extract_final_result(history)
         
@@ -101,4 +124,10 @@ async def run_agent(request: TaskRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(
+        app, 
+        host="0.0.0.0", 
+        port=8000,
+        timeout_keep_alive=1200,  # 20 minutes keep-alive
+        timeout_graceful_shutdown=30
+    )

@@ -61,6 +61,8 @@ The server runs on port **8000** and accepts POST requests at `/browse`.
 | `model` | string | ❌ | `deepseek-chat` | Model identifier |
 | `base_url` | string | ❌ | `https://api.deepseek.com/v1` | API endpoint URL |
 | `use_vision` | boolean | ❌ | `false` | Enable vision capabilities |
+| `timeout` | integer | ❌ | `900` | Request timeout in seconds (15 minutes) |
+| `max_steps` | integer | ❌ | `100` | Maximum agent steps to prevent infinite loops |
 
 ### Example 1: DeepSeek Chat
 
@@ -117,6 +119,23 @@ curl -X POST "http://<LXC_IP>:8000/browse" \
          }'
 ```
 
+### Example 5: Long-Running Task with Custom Timeout
+
+```bash
+curl -X POST "http://<LXC_IP>:8000/browse" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "url": "https://example.com/complex-page",
+           "task": "Extract all data from multiple pages",
+           "api_key": "YOUR_API_KEY",
+           "model": "deepseek-chat",
+           "timeout": 1800,
+           "max_steps": 150
+         }'
+```
+
+> **Note:** For n8n users, ensure your HTTP Request node timeout is set higher than the server timeout parameter (e.g., 1000000ms for 16+ minutes).
+
 ## 📋 Installation Details
 
 The `system_install.sh` script performs the following:
@@ -128,6 +147,34 @@ The `system_install.sh` script performs the following:
 5. ✅ Installs Playwright Chromium browser with dependencies
 6. ✅ Configures systemd service (`browser-use.service`)
 7. ✅ Enables and starts the service automatically
+
+### Updating Existing Installations
+
+If you already have the server installed and want to update to get the timeout fixes:
+
+```bash
+# Re-run the installation script (it will update automatically)
+cd /opt/browser-use-server
+git pull
+bash system_install.sh
+```
+
+Or manually update:
+
+```bash
+# Pull latest changes
+cd /opt/browser-use-server
+git pull
+
+# Update dependencies (if needed)
+./venv/bin/pip install -r requirements.txt
+
+# Restart the service
+systemctl restart browser-use.service
+
+# Verify the service is running
+systemctl status browser-use.service
+```
 
 ## 🔍 Monitoring
 
@@ -175,6 +222,18 @@ journalctl -u browser-use.service -n 50
 - Set `use_vision: true` in the request
 - Ensure the model supports vision (e.g., qwen-vl-plus, gpt-4o)
 - Check that the page contains images to process
+
+**Task timeout errors:**
+- The default timeout is 15 minutes (900 seconds)
+- For longer tasks, increase the `timeout` parameter in your request
+- Check server logs to see if the agent started execution: `journalctl -u browser-use.service -f`
+- For n8n users: Set HTTP Request node timeout higher than server timeout
+  - Example: Server timeout 900s → n8n timeout 1000000ms (16+ minutes)
+
+**Agent reaches max_steps:**
+- Default is 100 steps to prevent infinite loops
+- Increase `max_steps` parameter if your task requires more browser actions
+- Consider breaking complex tasks into smaller subtasks
 
 ### Service Management
 

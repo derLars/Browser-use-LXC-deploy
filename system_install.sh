@@ -80,10 +80,12 @@ After=network.target
 Type=simple
 User=$USER
 WorkingDirectory=$APP_DIR
-ExecStart=$APP_DIR/venv/bin/uvicorn server:app --host 0.0.0.0 --port 8000
+ExecStart=$APP_DIR/venv/bin/uvicorn server:app --host 0.0.0.0 --port 8000 --timeout-keep-alive 1200
 Restart=always
 RestartSec=5
 Environment=PYTHONUNBUFFERED=1
+TimeoutStartSec=60
+TimeoutStopSec=30
 
 [Install]
 WantedBy=multi-user.target
