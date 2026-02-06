@@ -1,23 +1,10 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import asyncio
-from contextlib import asynccontextmanager
 from browser_use import Agent, Browser
 from browser_use.llm import ChatDeepSeek
 
-# Global browser instance
-browser = None
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    global browser
-    # Initialize the browser once on startup
-    browser = Browser(headless=True, args=['--no-sandbox'])
-    yield
-    # Cleanup on shutdown (if browser supported close)
-    # if browser: await browser.close() 
-
-app = FastAPI(lifespan=lifespan)
+app = FastAPI()
 
 class TaskRequest(BaseModel):
     url: str
@@ -26,7 +13,6 @@ class TaskRequest(BaseModel):
 
 @app.post("/browse")
 async def run_agent(request: TaskRequest):
-    global browser
     try:
         # Initialize DeepSeek LLM
         llm = ChatDeepSeek(
@@ -35,10 +21,14 @@ async def run_agent(request: TaskRequest):
             api_key=request.deepseek_api_key,
         )
 
+        # Configure browser for headless execution in LXC
+        # 'args' passes arguments to the browser instance
+        browser = Browser(headless=True, args=['--no-sandbox'])
+
         # Prepare task description
         full_task = f"Navigate to {request.url}. {request.task}"
 
-        # Initialize Agent using the persistent browser instance
+        # Initialize Agent
         # use_vision=False because DeepSeek-V3 (chat) is text-only/DOM-based
         agent = Agent(
             task=full_task,
