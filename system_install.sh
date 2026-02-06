@@ -7,7 +7,6 @@ export DEBIAN_FRONTEND=noninteractive
 
 # --- Configuration ---
 APP_DIR="/opt/browser-use-server"
-# UPDATE THIS URL TO YOUR REPOSITORY AFTER CREATING IT
 GITHUB_REPO="https://github.com/derLars/Browser-use-LXC-deploy.git"
 SERVICE_FILE="/etc/systemd/system/browser-use.service"
 USER="root" # Running as root for simplicity in LXC, browser-use handles sandbox flags if configured
@@ -25,7 +24,7 @@ apt-get update
 apt-get install -y \
     python3 python3-pip python3-venv python3-dev \
     git curl wget \
-    libasound2 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 # Common Playwright deps just in case
+    libasound2 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 # Common Playwright deps
 
 # --- Application Setup ---
 log "[2/5] Setting up application directory..."
@@ -41,14 +40,7 @@ if [ -d "$APP_DIR" ]; then
     fi
 else
     log "Cloning repository..."
-    # If GITHUB_REPO is still the placeholder, this will fail. We'll handle it gracefully or warn.
-    if [[ "$GITHUB_REPO" == *"YOUR_USERNAME"* ]]; then
-        log "WARNING: GITHUB_REPO variable is still set to placeholder. Please update system_install.sh with your actual repository URL."
-        log "Creating directory manually for now..."
-        mkdir -p "$APP_DIR"
-    else
-        git clone "$GITHUB_REPO" "$APP_DIR"
-    fi
+    git clone "$GITHUB_REPO" "$APP_DIR"
 fi
 
 cd "$APP_DIR"
@@ -56,9 +48,6 @@ cd "$APP_DIR"
 # Ensure we are in the directory
 if [ ! -f "requirements.txt" ]; then
     log "ERROR: requirements.txt not found in $APP_DIR. Did the clone succeed?"
-    # For initial setup without repo, we might just copy files if running locally?
-    # But user wants a script to download everything.
-    # Assuming user will upload files to repo before running this script on server.
     exit 1
 fi
 
@@ -68,15 +57,16 @@ if [ ! -d "venv" ]; then
     python3 -m venv venv
 fi
 
-source venv/bin/activate
+# Upgrade pip inside venv
+./venv/bin/pip install --upgrade pip
 
 log "Installing Python dependencies..."
-pip install --upgrade pip
-pip install -r requirements.txt
+./venv/bin/pip install -r requirements.txt
 
 # --- Playwright Setup ---
 log "[4/5] Installing Playwright browsers and dependencies..."
-playwright install --with-deps chromium
+# Use the explicit path to the binary in the venv
+./venv/bin/playwright install --with-deps chromium
 
 # --- Service Setup ---
 log "[5/5] Configuring systemd service..."
