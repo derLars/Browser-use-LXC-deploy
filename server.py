@@ -49,13 +49,6 @@ async def run_agent(request: TaskRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        # Ensure browser is closed if possible, though 'browser' object might handle it or be reused.
-        # In this simple implementation, we create a new browser instance per request which is safer but slower.
-        # Ideally we'd reuse the browser but create new contexts. 
-        # For now, let's rely on garbage collection or explicit close if available.
-        if 'browser' in locals():
-            await browser.close()
 
 if __name__ == "__main__":
     import uvicorn
