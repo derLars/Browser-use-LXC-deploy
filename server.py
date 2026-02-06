@@ -1,9 +1,8 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import asyncio
-from browser_use import Agent
+from browser_use import Agent, Browser, BrowserConfig
 from browser_use.llm import ChatDeepSeek
-from browser_use.browser.browser import Browser, BrowserConfig
 
 app = FastAPI()
 
