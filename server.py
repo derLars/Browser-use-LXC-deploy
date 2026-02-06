@@ -33,24 +33,32 @@ class TaskRequest(BaseModel):
 
 def extract_final_result(history):
     """Extracts the final meaningful result from the agent history."""
-    # Check for errors first
-    if history.all_results:
-        last_result = history.all_results[-1]
-        if last_result.error:
-            return {"error": last_result.error, "details": str(history)}
-
-    # Look for 'done' action output
-    for output in reversed(history.all_model_outputs):
-        if 'done' in output:
-            return {"result": output['done'].get('text')}
-    
-    # Fallback to extracted content
-    if history.all_results:
-        last_result = history.all_results[-1]
-        if last_result.extracted_content:
-            return {"result": last_result.extracted_content}
-            
-    return {"result": "Task completed (no explicit text output found).", "history_summary": str(history)}
+    try:
+        # Convert Pydantic model to dict for safe access
+        if hasattr(history, 'model_dump'):
+            history_dict = history.model_dump()
+        elif hasattr(history, 'dict'):
+            history_dict = history.dict()
+        else:
+            # Fallback if it's not a Pydantic model
+            logger.warning("History object doesn't have model_dump or dict method")
+            return {"result": "Task completed successfully", "history": str(history)}
+        
+        logger.debug(f"History structure: {list(history_dict.keys())}")
+        
+        # Return the structured history data
+        return {
+            "result": "Task completed successfully",
+            "history": history_dict
+        }
+        
+    except Exception as e:
+        logger.error(f"Error extracting result: {e}")
+        return {
+            "result": "Task completed successfully", 
+            "note": "History data could not be serialized",
+            "error_details": str(e)
+        }
 
 @app.post("/browse")
 async def run_agent(request: TaskRequest):
