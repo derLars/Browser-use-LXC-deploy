@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import asyncio
-from browser_use import Agent, Browser, BrowserConfig
+from browser_use import Agent, Browser
 from browser_use.llm import ChatDeepSeek
 
 app = FastAPI()
@@ -23,7 +23,7 @@ async def run_agent(request: TaskRequest):
 
         # Configure browser for headless execution in LXC
         # extra_chromium_args=['--no-sandbox'] is often needed in containers/root execution
-        browser = Browser(config=BrowserConfig(headless=True, extra_chromium_args=['--no-sandbox']))
+        browser = Browser(headless=True, extra_chromium_args=['--no-sandbox'])
 
         # Prepare task description
         # If url is provided, we can instruct the agent to start there
