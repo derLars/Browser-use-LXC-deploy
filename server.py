@@ -82,6 +82,23 @@ async def run_agent(request: TaskRequest):
                 model=request.model,
                 api_key=request.api_key,
             )
+        elif "mistral" in request.model.lower():
+            llm = ChatOpenAI(
+                base_url=base_url,
+                model=request.model,
+                api_key=request.api_key,
+            )
+            # Patch the client to remove max_completion_tokens for Mistral
+            # Mistral API does not support this parameter which newer OpenAI clients send by default
+            if hasattr(llm, 'client') and hasattr(llm.client, 'chat') and hasattr(llm.client.chat, 'completions'):
+                original_create = llm.client.chat.completions.create
+                
+                async def wrapped_create(*args, **kwargs):
+                    if 'max_completion_tokens' in kwargs:
+                        kwargs.pop('max_completion_tokens')
+                    return await original_create(*args, **kwargs)
+                
+                llm.client.chat.completions.create = wrapped_create
         else:
             llm = ChatOpenAI(
                 base_url=base_url,
@@ -96,44 +113,53 @@ async def run_agent(request: TaskRequest):
         # Prepare task description
         full_task = f"Navigate to {request.url}. {request.task}"
 
-        # Initialize Agent
-        agent = Agent(
-            task=full_task,
-            llm=llm,
-            use_vision=request.use_vision,
-            browser=browser,
-            max_steps=request.max_steps
-        )
-
-        logger.info(f"Starting agent execution with {request.timeout}s timeout...")
-        
         try:
-            # Run agent with timeout
-            history = await asyncio.wait_for(
-                agent.run(),
-                timeout=request.timeout
+            # Initialize Agent
+            agent = Agent(
+                task=full_task,
+                llm=llm,
+                use_vision=request.use_vision,
+                browser=browser,
+                max_steps=request.max_steps
             )
-            logger.info("Agent execution finished successfully.")
+
+            logger.info(f"Starting agent execution with {request.timeout}s timeout...")
             
-        except asyncio.TimeoutError:
-            logger.error(f"Agent execution timed out after {request.timeout} seconds")
-            return JSONResponse(
-                status_code=408,  # Request Timeout
-                content={
-                    "error": "timeout",
-                    "message": f"Task execution exceeded the timeout limit of {request.timeout} seconds",
-                    "suggestion": "Try increasing the 'timeout' parameter or simplifying the task"
-                }
-            )
-        
-        response_data = extract_final_result(history)
-        
-        if "error" in response_data:
-            logger.error(f"Agent failed: {response_data['error']}")
-            return JSONResponse(status_code=500, content=response_data)
+            try:
+                # Run agent with timeout
+                history = await asyncio.wait_for(
+                    agent.run(),
+                    timeout=request.timeout
+                )
+                logger.info("Agent execution finished successfully.")
+                
+            except asyncio.TimeoutError:
+                logger.error(f"Agent execution timed out after {request.timeout} seconds")
+                return JSONResponse(
+                    status_code=408,  # Request Timeout
+                    content={
+                        "error": "timeout",
+                        "message": f"Task execution exceeded the timeout limit of {request.timeout} seconds",
+                        "suggestion": "Try increasing the 'timeout' parameter or simplifying the task"
+                    }
+                )
             
-        logger.success("Task completed successfully.")
-        return response_data
+            response_data = extract_final_result(history)
+            
+            if "error" in response_data:
+                logger.error(f"Agent failed: {response_data['error']}")
+                return JSONResponse(status_code=500, content=response_data)
+                
+            logger.success("Task completed successfully.")
+            return response_data
+
+        finally:
+            if browser:
+                try:
+                    await browser.close()
+                    logger.debug("Browser instance closed.")
+                except Exception as e:
+                    logger.warning(f"Failed to close browser: {e}")
 
     except Exception as e:
         logger.exception("Internal Server Error")
