@@ -6,9 +6,7 @@ from pydantic import BaseModel
 from browser_use import Agent, Browser
 from browser_use.llm import ChatDeepSeek, ChatOpenAI
 from loguru import logger
-from typing import Any, Dict, List, Optional
-from langchain_core.messages import BaseMessage
-from langchain_core.outputs import ChatResult
+from typing import Any, Dict
 
 # --- Logger Setup ---
 os.makedirs("logs", exist_ok=True)
