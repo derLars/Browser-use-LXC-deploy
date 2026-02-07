@@ -26,7 +26,7 @@ class TaskRequest(BaseModel):
     task: str
     api_key: str
     model: str = "deepseek-chat"
-    base_url: str = "https://api.deepseek.com/v1" 
+    base_url: str | None = None
     use_vision: bool = False
     timeout: int = 900  # Default 15 minutes (in seconds)
     max_steps: int = 100  # Maximum agent steps to prevent infinite loops
@@ -66,16 +66,25 @@ async def run_agent(request: TaskRequest):
     logger.info(f"Configuration: model={request.model}, vision={request.use_vision}, timeout={request.timeout}s, max_steps={request.max_steps}")
     
     try:
+        # Determine base_url based on model if not provided
+        base_url = request.base_url
+        if not base_url:
+            if "deepseek" in request.model.lower():
+                base_url = "https://api.deepseek.com/v1"
+            elif "mistral" in request.model.lower():
+                base_url = "https://api.mistral.ai/v1"
+            # For OpenAI and others, let the library handle the default or use what's provided
+
         # Initialize LLM
         if "deepseek" in request.model.lower():
             llm = ChatDeepSeek(
-                base_url=request.base_url or 'https://api.deepseek.com/v1',
+                base_url=base_url,
                 model=request.model,
                 api_key=request.api_key,
             )
         else:
             llm = ChatOpenAI(
-                base_url=request.base_url,
+                base_url=base_url,
                 model=request.model,
                 api_key=request.api_key,
             )
