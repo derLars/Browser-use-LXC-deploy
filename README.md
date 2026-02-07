@@ -61,6 +61,8 @@ The server runs on port **8000** and accepts POST requests at `/browse`.
 | `model` | string | ❌ | `deepseek-chat` | Model identifier |
 | `base_url` | string | ❌ | `https://api.deepseek.com/v1` | API endpoint URL |
 | `use_vision` | boolean | ❌ | `false` | Enable vision capabilities |
+| `use_judge` | boolean | ❌ | `false` | Enable LLM-based result validation (judge) |
+| `use_thinking` | boolean | ❌ | `false` | Enable internal thinking process |
 | `timeout` | integer | ❌ | `900` | Request timeout in seconds (15 minutes) |
 | `max_steps` | integer | ❌ | `100` | Maximum agent steps to prevent infinite loops |
 
@@ -131,6 +133,23 @@ curl -X POST "http://<LXC_IP>:8000/browse" \
            "model": "deepseek-chat",
            "timeout": 1800,
            "max_steps": 150
+         }'
+```
+
+### Example 6: Optimized Extraction (No Judge)
+
+Use this when the agent extracts correct data but the "judge" falsely rejects it.
+
+```bash
+curl -X POST "http://<LXC_IP>:8000/browse" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "url": "https://www.imdb.com",
+           "task": "Extract top 10 movie titles",
+           "api_key": "YOUR_API_KEY",
+           "model": "deepseek-chat",
+           "use_judge": false,
+           "use_thinking": false
          }'
 ```
 

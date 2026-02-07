@@ -28,6 +28,8 @@ class TaskRequest(BaseModel):
     model: str = "deepseek-chat"
     base_url: str | None = None
     use_vision: bool = False
+    use_judge: bool = False  # Whether to use LLM to critique results
+    use_thinking: bool = False  # Whether to use internal thinking process
     timeout: int = 900  # Default 15 minutes (in seconds)
     max_steps: int = 100  # Maximum agent steps to prevent infinite loops
 
@@ -101,7 +103,9 @@ async def run_agent(request: TaskRequest):
                 llm=llm,
                 use_vision=request.use_vision,
                 browser=browser,
-                max_steps=request.max_steps
+                max_steps=request.max_steps,
+                use_judge=request.use_judge,
+                use_thinking=request.use_thinking
             )
 
             logger.info(f"Starting agent execution with {request.timeout}s timeout...")
