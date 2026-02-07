@@ -6,7 +6,6 @@ from pydantic import BaseModel
 from browser_use import Agent, Browser
 from browser_use.llm import ChatDeepSeek, ChatOpenAI
 from loguru import logger
-from typing import Any, Dict
 
 # --- Logger Setup ---
 os.makedirs("logs", exist_ok=True)
@@ -19,29 +18,6 @@ logger.add(
     backtrace=True,
     diagnose=True,
 )
-
-# Custom ChatOpenAI class for Mistral compatibility
-class MistralChatOpenAI(ChatOpenAI):
-    """Custom ChatOpenAI wrapper that removes max_completion_tokens for Mistral API compatibility."""
-    
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # Wrap the client's create method to filter out unsupported parameters
-        if hasattr(self, 'client'):
-            self._patch_client()
-    
-    def _patch_client(self):
-        """Patch the OpenAI client to remove max_completion_tokens before API calls."""
-        if hasattr(self.client, 'chat') and hasattr(self.client.chat, 'completions'):
-            original_create = self.client.chat.completions.create
-            
-            def create_wrapper(**kwargs):
-                # Remove max_completion_tokens as Mistral doesn't support it
-                kwargs.pop('max_completion_tokens', None)
-                logger.debug(f"Filtered API params for Mistral: {list(kwargs.keys())}")
-                return original_create(**kwargs)
-            
-            self.client.chat.completions.create = create_wrapper
 
 app = FastAPI()
 
@@ -95,20 +71,11 @@ async def run_agent(request: TaskRequest):
         if not base_url:
             if "deepseek" in request.model.lower():
                 base_url = "https://api.deepseek.com/v1"
-            elif "mistral" in request.model.lower():
-                base_url = "https://api.mistral.ai/v1"
             # For OpenAI and others, let the library handle the default or use what's provided
 
         # Initialize LLM
         if "deepseek" in request.model.lower():
             llm = ChatDeepSeek(
-                base_url=base_url,
-                model=request.model,
-                api_key=request.api_key,
-            )
-        elif "mistral" in request.model.lower():
-            # Use custom MistralChatOpenAI class that removes max_completion_tokens
-            llm = MistralChatOpenAI(
                 base_url=base_url,
                 model=request.model,
                 api_key=request.api_key,

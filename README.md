@@ -16,7 +16,7 @@ The server will be running on port **8000** after installation completes.
 ## ✨ Features
 
 - 🎯 **FastAPI Server**: Simple HTTP interface for browser automation
-- 🤖 **Multi-Model Support**: DeepSeek, Mistral AI, Qwen (Alibaba Cloud), OpenAI, and any OpenAI-compatible API
+- 🤖 **Multi-Model Support**: DeepSeek, Qwen (Alibaba Cloud), OpenAI, and any OpenAI-compatible API
 - 🐧 **LXC Optimized**: Configured for Debian 13 containers with `--no-sandbox` support
 - 👁️ **Vision Capable**: Supports multimodal models (like Qwen-VL, GPT-4o) for visual web interaction
 - 📊 **Production Ready**: Systemd service, logging with rotation, and automatic restart
@@ -43,7 +43,6 @@ The server will be running on port **8000** after installation completes.
 | Provider | Base URL | Vision Support | Example Models |
 |----------|----------|----------------|----------------|
 | DeepSeek | `https://api.deepseek.com/v1` | ✅ | deepseek-chat, deepseek-reasoner |
-| Mistral AI | `https://api.mistral.ai/v1` | ❌ (Text only) | mistral-small, mistral-large |
 | Qwen (Alibaba) | `https://dashscope-intl.aliyuncs.com/compatible-mode/v1` | ✅ | qwen-vl-plus, qwen-turbo |
 | OpenAI | `https://api.openai.com/v1` | ✅ | gpt-4o, gpt-4-turbo |
 | Custom | Your endpoint | Depends | Any OpenAI-compatible API |
@@ -120,20 +119,7 @@ curl -X POST "http://<LXC_IP>:8000/browse" \
          }'
 ```
 
-### Example 5: Mistral AI (Text Only)
-
-```bash
-curl -X POST "http://<LXC_IP>:8000/browse" \
-     -H "Content-Type: application/json" \
-     -d '{
-           "url": "https://en.wikipedia.org",
-           "task": "Find the article of the day",
-           "api_key": "YOUR_MISTRAL_API_KEY",
-           "model": "mistral-small-latest"
-         }'
-```
-
-### Example 6: Long-Running Task with Custom Timeout
+### Example 5: Long-Running Task with Custom Timeout
 
 ```bash
 curl -X POST "http://<LXC_IP>:8000/browse" \
